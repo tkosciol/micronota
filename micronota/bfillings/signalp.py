@@ -21,13 +21,17 @@ class SignalP(CommandLineApplication):
         # Logfile if -v is defined. Default: 'STDERR'
         '-l',
         # Specify temporary file directory. Default: /var/tmp
-        '-T'
+        '-T',
+        # Make fasta file with mature sequence. Default: None
+        '-m',
+        # Make gff file of processed sequences. Default: 'Off'
+        '-n'
     ]
     _valued_nonpath_options = [
         # Setting the output format ('short', 'long', 'summary' or 'all').
         # Default: 'short'
         '-f',
-        # Graphics 'png' or 'png+eps'. Default: 'Off'
+        # Graphics 'png' or 'png+eps'. Requires GNUPLOT. Default: 'Off'
         '-g',
         # Signal peptide networks to use ('best' or 'notm'). Default: 'best'
         '-s',
@@ -41,7 +45,6 @@ class SignalP(CommandLineApplication):
         '-M',
         # truncate to sequence length - 0 means no truncation. Default '70'
         '-c'
-
     ]
     _flag_options = [
         # Output this handy help message
@@ -52,10 +55,6 @@ class SignalP(CommandLineApplication):
         '-v',
         # Keep temporary directory. Default: 'Off'
         '-k',
-        # Make fasta file with mature sequence. Default: 'Off'
-        '-m',
-        # Make gff file of processed sequences. Default: 'Off'
-        '-n',
         # web predictions. Default: 'Off'
         '-w'
     ]
@@ -81,46 +80,73 @@ class SignalP(CommandLineApplication):
 
     def _get_result_paths(self, data):
         result = {}
-        result['output'] = ResultPath(data[1], IsWritten=True)
-        spacer = self.Parameters['-spacers'].isOn()
-        if spacer:
-            # replace the final extension with '_spacers.fa'
-            out_fp = re.sub(r"\.[^.]*$", '_spacers.fa', data[1])
-            result['spacers'] = ResultPath(Path=out_fp, IsWritten=True)
+        out_fp = re.sub(r"\>\ ", '', data[1])
+        result['output'] = ResultPath(out_fp, IsWritten=True)
+
+        # if `-k` flag is defined get temporaty file dir from `-T`
+        if self.Parameters['-k'].isOn():
+            if self.Parameters['-T'].isOn():
+                tmp_fp = self._absolute(self.Parameters['-T'].Value)
+            else:
+                # taken from default definition in `_valued_path_options`
+                tmp_fp = '/var/tmp/'
+            result['tmp'] = ResultPath(Path=tmp_fp, IsWritten=True)
+
+        # get log file path
+        l = self.Parameters['-l']
+        if l.isOn():
+            log_fp = self._absolute(l.Value)
+            result['log'] = ResultPath(Path=log_fp, IsWritten=True)
+
+        # get gff file
+        g = self.Parameters['-m']
+        if g.isOn():
+            gff_fp = self._absolute(g.Value)
+            result['gff'] = ResultPath(Path=gff_fp, IsWritten=True)
+
+        # get fasta file with mature sequences
+        m = self.Parameters['-m']
+        if m.isOn():
+            fasta_fp = self._absolute(m.Value)
+            result['fasta'] = ResultPath(Path=fasta_fp, IsWritten=True)
+
+        # get png (and eps) files
+        if self.Parameters['-g'].isOn():
+            # get inp_fp GI_IDs
+            # # HERE
+            gis = []
+            # get png files
+            for gi in gis:
+                result['png']
+            if self.Parameters['-g'].Value is 'gff+eps':
+                # get eps files
+                result['eps']
 
         return result
 
 
-def predict_crispr(in_fp, out_dir, prefix,
-                   spac=False, gff=False, gffFull=False, params=None):
-    '''Predict CRISPRs for the input file.
+def predict_signal(in_fp, out_dir, prefix, params=None):
+    '''Predict signal peptide cleavage sites for the input file.
 
     Notes
     -----
-    It will create 1 or 2 output files, depending on the parameters:
-      1. file containing CRIPSR information, including locations of CRISPRs
-         and their sequence composition OR
-        1a. GFF file with short information on CRISPR locations OR
-        1b. GFFFull file with detailed information on CRISPR locations
-      2. (OPTIONAL; -spacers flag) Fasta file of predicted CRISPR spacers
+    It will create an output file, depending on the selected parameter:
+        A. short
+        B. long
+        C. summary
+        D. all
 
     Parameters
     ----------
     in_fp : str
         input file path
     out_dir : str
-        output directory
+        output file directory path
     prefix : str
-        prefix of output file name
-    gff : bool
-        Default False. Summary results in gff format.
-    gffFull : bool
-        Default False. Full results in gff format.
-    spac : bool
-        Default False. Fasta formatted file containing the spacers
+        name of the output file
     params : dict
-        Other command line parameters for MinCED. key is the option
-        (e.g. "-searchWL") and value is the value for the option (e.g. "6").
+        Other command line parameters for SignalP. key is the option
+        (e.g. "-t") and value is the value for the option (e.g. "euk").
         If the option is a flag, set the value to None.
 
     Returns
@@ -128,29 +154,20 @@ def predict_crispr(in_fp, out_dir, prefix,
     burrito.util.CommandLineAppResult
         It contains opened file handlers of stdout, stderr, and the
         output files, which can be accessed in a dict style with the
-        keys of "StdOut", "StdErr", "output" and "spacers". The exit status
-        of the run can be similarly fetched with the key of "ExitStatus".
+        keys of "StdOut", "StdErr", "output", "tmp" (if specified),
+        "gff" (if specified), "fasta" (if specified), "png" & "eps" (if spec.)
+        and "log" (if specified). The exit status of the run can be similarly
+        fetched with the key "ExitStatus".
     '''
-    # create dir if not exist
+    # create dir if does not exist
     makedirs(out_dir, exist_ok=True)
+
+    out_suffix = ""
+
+    out_fp = ' '. join(['>', join(out_dir, '.'.join([prefix, out_suffix]))])
 
     if params is None:
         params = {}
 
-    if gff:
-        out_suffix = 'gff'
-    elif gffFull:
-        out_suffix = 'gffFull'
-    else:
-        out_suffix = 'crisprs'
-
-    out_fp = join(out_dir, '.'.join([prefix, out_suffix]))
-
-    app = MinCED(InputHandler='_input_as_paths', params=params)
-    if spac:
-        app.Parameters['-spacers'].on()
-    if gff:
-        app.Parameters['-gff'].on()
-    if gffFull:
-        app.Parameters['-gffFull'].on()
+    app = SignalP(InputHandler='_input_as_paths', params=params)
     return app([in_fp, out_fp])

@@ -8,7 +8,6 @@
 
 from os import makedirs
 from os.path import join
-import re
 
 from burrito.parameters import FlagParameter, ValuedParameter
 from burrito.util import CommandLineApplication, ResultPath
@@ -80,8 +79,9 @@ class SignalP(CommandLineApplication):
 
     def _get_result_paths(self, data):
         result = {}
-        out_fp = re.sub(r"\>\ ", '', data[1])
-        result['output'] = ResultPath(out_fp, IsWritten=True)
+        # out_fp = re.sub(r"\>\ ", '', data[1])
+        # result['output'] = ResultPath(out_fp, IsWritten=True)
+        # result['output'] = sys.stdout
 
         # if `-k` flag is defined get temporaty file dir from `-T`
         if self.Parameters['-k'].isOn():
@@ -92,35 +92,24 @@ class SignalP(CommandLineApplication):
                 tmp_fp = '/var/tmp/'
             result['tmp'] = ResultPath(Path=tmp_fp, IsWritten=True)
 
-        # get log file path
-        l = self.Parameters['-l']
-        if l.isOn():
-            log_fp = self._absolute(l.Value)
-            result['log'] = ResultPath(Path=log_fp, IsWritten=True)
+        # get log, fasta and gff file paths
+        for option, vals in [('-l', 'log'), ('-m', 'fasta'), ('-n', 'gff')]:
+            if self.Parameters[option].isOn():
+                fp = self._absolute(self.Parameters[option].Value)
+                result[vals] = ResultPath(Path=fp, IsWritten=True)
 
-        # get gff file
-        g = self.Parameters['-m']
-        if g.isOn():
-            gff_fp = self._absolute(g.Value)
-            result['gff'] = ResultPath(Path=gff_fp, IsWritten=True)
-
-        # get fasta file with mature sequences
-        m = self.Parameters['-m']
-        if m.isOn():
-            fasta_fp = self._absolute(m.Value)
-            result['fasta'] = ResultPath(Path=fasta_fp, IsWritten=True)
-
-        # get png (and eps) files
-        if self.Parameters['-g'].isOn():
-            # get inp_fp GI_IDs
-            # # HERE
-            gis = []
-            # get png files
-            for gi in gis:
-                result['png']
-            if self.Parameters['-g'].Value is 'gff+eps':
-                # get eps files
-                result['eps']
+        # # SKIP THIS FOR NOW
+        # # get png (and eps) files
+        # if self.Parameters['-g'].isOn():
+        #     # get inp_fp GI_IDs
+        #     # # HERE
+        #     gis = []
+        #     # get png files
+        #     for gi in gis:
+        #         result['png']
+        #     if self.Parameters['-g'].Value is 'gff+eps':
+        #         # get eps files
+        #         result['eps']
 
         return result
 
@@ -135,6 +124,8 @@ def predict_signal(in_fp, out_dir, prefix, params=None):
         B. long
         C. summary
         D. all
+    SignalP accepts any input and does not raise input file errors.
+    Please check for correct input before running SignalP.
 
     Parameters
     ----------
@@ -162,12 +153,22 @@ def predict_signal(in_fp, out_dir, prefix, params=None):
     # create dir if does not exist
     makedirs(out_dir, exist_ok=True)
 
-    out_suffix = ""
-
-    out_fp = ' '. join(['>', join(out_dir, '.'.join([prefix, out_suffix]))])
-
     if params is None:
         params = {}
+
+    # determine suffix on the basis of '-f' option
+    if '-f' in params:
+        out_suffix = "_".join(["sp", params['-f']])
+    else:
+        out_suffix = "sp_short"
+
+    # change -m, -n and -l options to include path if there isn't one!
+    for i in ['-l', '-m', '-n']:
+        if i in params:
+            if '/' not in params[i]:
+                params[i] = join(out_dir, params[i])
+
+    out_fp = join(out_dir, '.'.join([prefix, out_suffix]))
 
     app = SignalP(InputHandler='_input_as_paths', params=params)
     return app([in_fp, out_fp])

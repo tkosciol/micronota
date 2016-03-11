@@ -79,9 +79,6 @@ class SignalP(CommandLineApplication):
 
     def _get_result_paths(self, data):
         result = {}
-        # out_fp = re.sub(r"\>\ ", '', data[1])
-        # result['output'] = ResultPath(out_fp, IsWritten=True)
-        # result['output'] = sys.stdout
 
         # if `-k` flag is defined get temporaty file dir from `-T`
         if self.Parameters['-k'].isOn():
@@ -100,16 +97,18 @@ class SignalP(CommandLineApplication):
 
         # # SKIP THIS FOR NOW
         # # get png (and eps) files
-        # if self.Parameters['-g'].isOn():
-        #     # get inp_fp GI_IDs
-        #     # # HERE
-        #     gis = []
-        #     # get png files
-        #     for gi in gis:
-        #         result['png']
-        #     if self.Parameters['-g'].Value is 'gff+eps':
-        #         # get eps files
-        #         result['eps']
+        if self.Parameters['-g'].isOn():
+            # get inp_fp GI_IDs
+            gis = []
+            g_fp = self.WorkingDir
+            # get png files
+            for gi in gis:
+                png_fp = join(g_fp, '.'.join([gi, 'png']))
+                result['png'] = ResultPath(Path=png_fp, IsWritten=True)
+                if self.Parameters['-g'].Value is 'gff+eps':
+                    # get eps files
+                    eps_fp = join(g_fp, '.'.join([gi, 'eps']))
+                    result['eps'] = ResultPath(Path=eps_fp, IsWritten=True)
 
         return result
 
@@ -119,7 +118,7 @@ def predict_signal(in_fp, out_dir, prefix, params=None):
 
     Notes
     -----
-    It will create an output file, depending on the selected parameter:
+    It will create an output, depending on the selected parameter:
         A. short
         B. long
         C. summary
@@ -145,10 +144,10 @@ def predict_signal(in_fp, out_dir, prefix, params=None):
     burrito.util.CommandLineAppResult
         It contains opened file handlers of stdout, stderr, and the
         output files, which can be accessed in a dict style with the
-        keys of "StdOut", "StdErr", "output", "tmp" (if specified),
-        "gff" (if specified), "fasta" (if specified), "png" & "eps" (if spec.)
-        and "log" (if specified). The exit status of the run can be similarly
-        fetched with the key "ExitStatus".
+        keys of "StdOut", "StdErr", "tmp" (if specified), "gff" (if specified),
+        "fasta" (if specified), "png" & "eps" (if specified)
+        and "log" (if specified). Main output is passed to "StdOut".
+        The exit status of the run can be similarly fetched with the key "ExitStatus".
     '''
     # create dir if does not exist
     makedirs(out_dir, exist_ok=True)
@@ -170,5 +169,6 @@ def predict_signal(in_fp, out_dir, prefix, params=None):
 
     out_fp = join(out_dir, '.'.join([prefix, out_suffix]))
 
-    app = SignalP(InputHandler='_input_as_paths', params=params)
+    app = SignalP(InputHandler='_input_as_paths', WorkingDir=out_dir,
+                  params=params)
     return app([in_fp, out_fp])

@@ -25,15 +25,7 @@ class SignalPTests(TestCase):
             get_data_path, subfolder=join('data', 'signalp'))
 
         # taken from SignalP test files
-        self.positive_fps = list(map(self.get_signalp_path,
-                                 ['euk10.fsa',
-                                  'euk10.fsa',
-                                  'euk10.fsa',
-                                  'euk10.fsa']))
-        self.negative_fps = list(map(get_data_path, [
-            # SignalP hangs on whitespace_only
-            'whitespace_only',
-            'empty']))
+        self.positive_fp = list(map(self.get_signalp_path, ['euk10.fsa']))
         self.positive_params = [
             {'-t': 'euk'},
             {'-t': 'euk', '-f': 'summary'},
@@ -44,7 +36,7 @@ class SignalPTests(TestCase):
             {'out': 'sp_short'},
             {'out': 'sp_summary'},
             {'out': 'sp_long', '-m': 'fasta'},
-            {'out': 'sp_all', '-g': 'gff'}]
+            {'out': 'sp_all', '-n': 'gff'}]
 
     def test_base_command(self):
         c = SignalP()
@@ -53,17 +45,12 @@ class SignalPTests(TestCase):
             'cd "%s/"; %s' % (getcwd(), c._command))
 
     # SignalP accepts any input and does not raise errors
-    # def test_predict_signal_wrong_input(self):
-    #     for fp in self.negative_fps:
-    #         with self.assertRaisesRegex(
-    #                 ApplicationError,
-    #                 r'Error constructing CommandLineAppResult.'):
-    #             predict_signal(fp, self.temp_dir, 'foo')
+    # no negative testing
 
     def test_predict_signal(self):
-        for in_fp, params, suffix in zip(self.positive_fps,
-                                         self.positive_params,
-                                         self.positive_suffices):
+        for params, suffix in zip(self.positive_params,
+                                  self.positive_suffices):
+            in_fp = self.positive_fp[0]
             prefix = self.positive_prefix
             res = predict_signal(in_fp, self.temp_dir, prefix, params=params)
             self.assertEqual(res['ExitStatus'], 0)

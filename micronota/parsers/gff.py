@@ -91,15 +91,9 @@ Format Support
 +------+------+---------------------------------------------------------------+
 |Reader|Writer|                          Object Class                         |
 +======+======+===============================================================+
-|Yes   |No    |:mod:`skbio.sequence.Sequence`                                 |
+|Yes   |No    |:mod:`skbio.metadata.IntervalMetadata` objects                 |
 +------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.DNA`                                      |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.RNA`                                      |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.Protein`                                  |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |generator of :mod:`skbio.sequence.Sequence` objects            |
+|Yes   |No    |generator of :mod:`skbio.metadata.IntervalMetadata` objects    |
 +------+------+---------------------------------------------------------------+
 
 
@@ -110,7 +104,7 @@ Reference
 
 from skbio.util._misc import merge_dicts
 from skbio.io import create_format, FileFormatError
-from skbio.sequence import Sequence, DNA, RNA, Protein
+from skbio.metadata import IntervalMetadata, Feature
 from skbio.io.format._base import (
     _line_generator, _get_nth_sequence, _too_many_blanks)
 
@@ -125,8 +119,6 @@ _ANNOTATION_HEADERS = [
           'SEQID',
           'SOURCE',
           'TYPE',
-          'START',
-          'END',
           'SCORE',
           'STRAND',
           'PHASE',
@@ -160,7 +152,7 @@ def _gff_sniffer(fh):
         return False, {}
 
     try:
-        assert line.startswith('##')
+        assert line.startswith('##gff-version 3')
     except GFFFormatError:
         return False, {}
     return True, {}
@@ -174,14 +166,17 @@ def _is_float(input):
     return True
 
 
-def parse_optional(s):
-    _field, _type, _val = s.split(':')
-    if _type == 'i':
-        return {_field: int(_val)}
-    elif _type == 'f':
-        return {_field: float(_val)}
-    else:
-        return {_field: _val}
+def parse_attr(s):
+    _field = s.split(';')
+    _attr = ()
+    for f in _field:
+        try:
+            _type, _val = f.split('=')
+        except ValueError:
+            _type, _val = 0, 0
+
+        _attr = _attr + (_type, _val)
+    return _attr
 
 
 def parse_required(s):
@@ -193,16 +188,17 @@ def parse_required(s):
         return s
 
 
+def IntervalMetadata_construct(_attr, _interval):
+    im = IntervalMetadata()
+    im.add(Feature(**_attr), _interval)
+    return im
+
+
 def _construct(record, constructor=None, **kwargs):
-    seq, md = record
+    attr, meta = record
     if constructor is None:
-        constructor = Sequence
-    if constructor == RNA:
-        return DNA(
-            seq, metadata=md, **kwargs).transcribe()
-    else:
-        return constructor(
-            seq, metadata=md, **kwargs)
+        constructor = IntervalMetadata_construct
+    return constructor(attr, meta)
 
 
 @gff.reader(None)
@@ -211,64 +207,33 @@ def _gff_to_generator(fh, constructor=None, **kwargs):
         yield _construct(record, constructor, **kwargs)
 
 
-@gff.reader(Sequence)
-def _gff_to_sequence(fh, seq_num=1, **kwargs):
+@gff.reader(IntervalMetadata)
+def _gff_to_metadata(fh, seq_num=1, **kwargs):
     record = _get_nth_sequence(_parse_records(fh), seq_num)
-    return _construct(record, Protein, **kwargs)
+    return _construct(record, IntervalMetadata_construct, **kwargs)
 
 
-@gff.reader(Protein)
-def _gff_to_protein(fh, seq_num=1, **kwargs):
-    record = _get_nth_sequence(_parse_records(fh), seq_num)
-    return _construct(record, Protein, **kwargs)
-
-
-@gff.reader(DNA)
-def _gff_to_DNA(fh, seq_num=1, **kwargs):
-    record = _get_nth_sequence(_parse_records(fh), seq_num)
-    return _construct(record, DNA, **kwargs)
-
-
-@gff.reader(RNA)
-def _gff_to_RNA(fh, seq_num=1, **kwargs):
-    record = _get_nth_sequence(_parse_records(fh), seq_num)
-    return _construct(record, RNA, **kwargs)
-
-
+# generator passed to gff.reader()
+# OUT: yield annotation `annot` list of dicts and `intervals` list of tuples
 def _parse_records(fh, constructor=None, **kwargs):
-    metadata = {}
-    optional_headers = []
-    headers = _ANNOTATION_HEADERS
     for line in _line_generator(fh, skip_blanks=True, strip=True):
-        # parse the header (would be nice to abstract this pattern out)
-        if line.startswith('@'):
-            tabs = line.split('\t')
-            key = tabs[0][1:]
-            # FIXME:  The vals variable needs to be explicitly tested
-            vals = tabs[1:]
-            if key == 'CO':
-                val = vals[0]
-                optional_headers = val.split(',')
-                headers = _ANNOTATION_HEADERS + optional_headers
-                headers = headers[:9] + headers[10:]
-            else:
-                vals = tabs[1:]
-                if len(vals) > 1:
-                    metadata[key] = vals
-                else:
-                    metadata[key] = vals[0]
-
-        # parse the actual sequences
-        else:
+        if not line.startswith('#'):
             tabs = line.split('\t')
 
-            # extract sequence
-            seq = tabs[9]
-            tabs = tabs[:9] + tabs[10:]
+            # extract annotations
+            _headers = tabs[:3] + tabs[5:8]
 
-            req = list(map(parse_required, tabs[:10]))
-            opt = list(map(parse_optional, tabs[10:]))
-            req = dict(zip(_ANNOTATION_HEADERS, req))
+            # extract attributes
+            _attributes = tabs[8]
 
-            md = merge_dicts(metadata, req, *opt)
-            yield seq, md
+            # extract intervals
+            _intervals = tabs[3:5]
+
+            annot = list(map(parse_required, _headers))
+            intervals = tuple(map(parse_required, _intervals))
+            attr = parse_attr(_attributes)
+            annot.append(attr)
+
+            annot = dict(zip(_ANNOTATION_HEADERS, annot))
+
+            yield annot, intervals

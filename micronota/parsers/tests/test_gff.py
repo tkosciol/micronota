@@ -9,84 +9,50 @@
 from unittest import TestCase, main
 
 from skbio.util import get_data_path
-from skbio import Protein
+from skbio.metadata import IntervalMetadata, Feature
 
 from micronota.parsers.gff import (
-    _embl_sniffer, _embl_to_protein, _embl_to_generator)
+    _gff_sniffer, _gff_to_metadata, _gff_to_generator)
 
-
-class EmblIOTests(TestCase):
+class GffIOTests(TestCase):
     def setUp(self):
-        self.multi_fp = get_data_path('uniprot_multi.embl')
-        self.single_fp = get_data_path('uniprot_single.embl')
-        self.single_exp = (
-            'MAFSAEDVLKEYDRRRRMEALLLSLYYPNDRKLLDYKEWSPPRVQVECPKAPVEWNNPPSEKGL'
-            'IVGHFSGIKYKGEKAQASEVDVNKMCCWVSKFKDAMRRYQGIQTCKIPGKVLSDLDAKIKAYNL'
-            'TVEGVEGFVRYSRVTKQHVAAFLKELRHSKQYENVNLIHYILTDKRVDIQHLEKDLVKDFKALV'
-            'ESAHRMRQGHMINVKYILYQLLKKHGHGPDGPDILTVKTGSKGVLYDDSFRKIYTDLGWKFTPL',
-            {'AC': 'Q6GZX4',
-             'CC': ['-!- FUNCTION: Transcription activation. {ECO:0000305}.',
-                    '-----------------------------------------------------------------------',
-                    'Copyrighted by the UniProt Consortium, see http://www.uniprot.org/terms',
-                    'Distributed under the Creative Commons Attribution-NoDerivs License',
-                    '-----------------------------------------------------------------------'],
-             'DE': ['RecName: Full=Putative transcription factor 001R;'],
-             'DR': {'EMBL': ['AY548484; AAT09660.1; -; Genomic_DNA.'],
-                    'GO': ['GO:0046782; P:regulation of viral transcription; IEA:InterPro.',
-                           'GO:0006351; P:transcription, DNA-templated; IEA:UniProtKB-KW.'],
-                    'GeneID': ['2947773; -.'],
-                    'InterPro': ['IPR007031; Poxvirus_VLTF3.'],
-                    'KEGG': ['vg:2947773; -.'],
-                    'Pfam': ['PF04947; Pox_VLTF3; 1.'],
-                    'ProteinModelPortal': ['Q6GZX4; -.'],
-                    'Proteomes': ['UP000008770; Genome.'],
-                    'RefSeq': ['YP_031579.1; NC_005946.1.']},
-             'DT': ['28-JUN-2011, integrated into UniProtKB/Swiss-Prot.',
-                    '19-JUL-2004, sequence version 1.',
-                    '01-APR-2015, entry version 30.'],
-             'FT': ['CHAIN         1    256       Putative transcription factor 001R.',
-                    '/FTId=PRO_0000410512.',
-                    'COMPBIAS     14     17       Poly-Arg.'],
-             'GN': ['ORFNames=FV3-001R;'],
-             'ID': {'id': '001R_FRG3G',
-                    'quality': 'sprot',
-                    'size': '256',
-                    'unit': 'AA'},
-             'KW': ['Activator',
-                    'Complete proteome',
-                    'Reference proteome',
-                    'Transcription',
-                    'Transcription regulation'],
-             'OC': 'Viruses; dsDNA viruses, no RNA stage; Iridoviridae; Ranavirus',
-             'OH': {'45438': 'Rana sylvatica (Wood frog)',
-                    '8295': 'Ambystoma (mole salamanders)'},
-             'OS': ['Frog virus 3 (isolate Goorha) (FV-3).'],
-             'OX': '654924',
-             'PE': '4'})
-
+        self.multi_fp = get_data_path('full.gff')
+        self.simple_fp = get_data_path('simple.gff')
+        self.attributes = {
+        'SEQID': 'gi|15282445|ref|NC_000918.1|',
+        'SOURCE': 'minced:0.2.0',
+        'TYPE': 'CRISPR',
+        'SCORE': 5,
+        'STRAND': '.',
+        'PHASE': '.',
+        'ATTR': ('ID', 'CRISPR1')
+        }
+        self.intervals = (156460, 156767)
+        self.single_exp_im = IntervalMetadata()
+        self.single_exp_im.add(Feature(**self.attributes), self.intervals)
 
 class SnifferTests(TestCase):
     def setUp(self):
         self.fps = list(map(get_data_path, [
-            'uniprot_multi.embl',
-            'uniprot_single.embl']))
+            'simple.gff',
+            'full.gff']))
 
     def test_positive(self):
         for fp in self.fps:
-            self.assertEqual(_embl_sniffer(fp), (True, {}))
+            self.assertEqual(_gff_sniffer(fp), (True, {}))
 
 
-class ReaderTests(EmblIOTests):
-    def test_embl_to_protein(self):
-        obs = _embl_to_protein(self.single_fp)
-        exp = Protein(self.single_exp[0], self.single_exp[1])
-        self.assertEqual(exp, obs)
+class ReaderTests(GffIOTests):
+    def test_gff_to_metadata(self):
+        obs = _gff_to_metadata(self.multi_fp)
+        exp = self.single_exp_im
+        self.assertEqual(obs, exp)
 
-    def test_embl_to_generator(self):
-        exp = Protein(self.single_exp[0], self.single_exp[1])
-        for obs in _embl_to_generator(self.multi_fp):
-            self.assertEqual(exp, obs)
 
+    def test_gff_to_generator(self):
+        exp = self.single_exp_im
+        for obs in _gff_to_generator(self.simple_fp):
+            self.assertEqual(obs, exp)
 
 if __name__ == '__main__':
     main()

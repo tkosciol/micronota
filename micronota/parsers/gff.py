@@ -102,7 +102,6 @@ Reference
 .. [#] http://gmod.org/wiki/GFF3
 '''
 
-from skbio.util._misc import merge_dicts
 from skbio.io import create_format, FileFormatError
 from skbio.metadata import IntervalMetadata, Feature
 from skbio.io.format._base import (
@@ -166,7 +165,7 @@ def _is_float(input):
     return True
 
 
-def parse_attr(s):
+def _parse_attr(s):
     _field = s.split(';')
     _attr = ()
     for f in _field:
@@ -179,7 +178,7 @@ def parse_attr(s):
     return _attr
 
 
-def parse_required(s):
+def _parse_required(s):
     if s.isdigit():
         return int(s)
     elif _is_float(s):
@@ -229,9 +228,9 @@ def _parse_records(fh, constructor=None, **kwargs):
             # extract intervals
             _intervals = tabs[3:5]
 
-            annot = list(map(parse_required, _headers))
-            intervals = tuple(map(parse_required, _intervals))
-            attr = parse_attr(_attributes)
+            annot = list(map(_parse_required, _headers))
+            intervals = tuple(map(_parse_required, _intervals))
+            attr = _parse_attr(_attributes)
             annot.append(attr)
 
             annot = dict(zip(_ANNOTATION_HEADERS, annot))

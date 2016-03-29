@@ -248,8 +248,3 @@ def _parse_records(fh):
                 features[annotation] = intervals
 
     yield features
-
-
-@gff.writer(IntervalMetadata)
-def _IntervalMetadata_to_gff(im):
-    return True

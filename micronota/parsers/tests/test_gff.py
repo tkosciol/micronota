@@ -48,25 +48,25 @@ class GffIOTests(TestCase):
                                             Feature(**self.attribute2):
                                             self.interval2})
 
-        self.sequence_fp = get_data_path('sequence.gff')
-        self.sequence_exp = \
-            (
-             'cttctgggcgtacccgattctcggagaacttgccgcaccattccgccttg'
-             'tgttcattgctgcctgcatgttcattgtctacctcggctacgtgtggcta'
-             'tctttcctcggtgccctcgtgcacggagtcgagaaaccaaagaacaaaaa'
-             'aagaaattaaaatatttattttgctgtggtttttgatgtgtgttttttat'
-             'aatgatttttgatgtgaccaattgtacttttcctttaaatgaaatgtaat'
-             'cttaaatgtatttccgacgaattcgaggcctgaaaagtgtgacgccattc', {
-                 'SEQID': 'ctg123',
-                 'SOURCE': '.',
-                 'TYPE': 'exon',
-                 'START': 130,
-                 'END': 150,
-                 'SCORE': '.',
-                 'STRAND': '+',
-                 'PHASE': '.',
-                 'ATTR': ('ID', 'exon00001')
-             })
+        # self.sequence_fp = get_data_path('sequence.gff')
+        # self.sequence_exp = \
+        #     (
+        #      'cttctgggcgtacccgattctcggagaacttgccgcaccattccgccttg'
+        #      'tgttcattgctgcctgcatgttcattgtctacctcggctacgtgtggcta'
+        #      'tctttcctcggtgccctcgtgcacggagtcgagaaaccaaagaacaaaaa'
+        #      'aagaaattaaaatatttattttgctgtggtttttgatgtgtgttttttat'
+        #      'aatgatttttgatgtgaccaattgtacttttcctttaaatgaaatgtaat'
+        #      'cttaaatgtatttccgacgaattcgaggcctgaaaagtgtgacgccattc', {
+        #          'SEQID': 'ctg123',
+        #          'SOURCE': '.',
+        #          'TYPE': 'exon',
+        #          'START': 130,
+        #          'END': 150,
+        #          'SCORE': '.',
+        #          'STRAND': '+',
+        #          'PHASE': '.',
+        #          'ATTR': ('ID', 'exon00001')
+        #      })
 
 
 class SnifferTests(TestCase):

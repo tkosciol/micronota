@@ -5,7 +5,7 @@ GFF3 Parser
 GFF is a standard file format for storing genomic features in a text file.
 GFF stands for Generic Feature Format. GFF files are plain text, 9 column,
 tab-delimited files [#]_.
-GFF3 format is a flat tab-delimited file.
+
 The first line of the file is a comment that identifies the format and version.
 This is followed by a series of data lines, each one of which corresponds
 to an annotation.
@@ -93,6 +93,12 @@ Format Support
 +======+======+===============================================================+
 |Yes   |No    |:mod:`skbio.metadata.IntervalMetadata` objects                 |
 +------+------+---------------------------------------------------------------+
+|Yes   |No    |:mod:`skbio.sequence.Sequence`                                 |
++------+------+---------------------------------------------------------------+
+|Yes   |No    |:mod:`skbio.sequence.DNA`                                      |
++------+------+---------------------------------------------------------------+
+|Yes   |No    |:mod:`skbio.sequence.RNA`                                      |
++------+------+---------------------------------------------------------------+
 |Yes   |No    |generator of :mod:`skbio.metadata.IntervalMetadata` objects    |
 +------+------+---------------------------------------------------------------+
 
@@ -102,10 +108,14 @@ Reference
 .. [#] http://gmod.org/wiki/GFF3
 '''
 
+# TODO
+# add writer
+
 from skbio.io import create_format, FileFormatError
 from skbio.metadata import IntervalMetadata, Feature
 from skbio.io.format._base import (
-    _line_generator, _get_nth_sequence, _too_many_blanks)
+    _line_generator, _too_many_blanks)
+from skbio.io.format._base import _get_nth_sequence as _get_nth_record
 
 
 class GFFFormatError(FileFormatError):
@@ -150,11 +160,10 @@ def _gff_sniffer(fh):
     except StopIteration:
         return False, {}
 
-    try:
-        assert line.startswith('##gff-version 3')
-    except GFFFormatError:
+    if line.startswith('##gff-version 3'):
+        return True, {}
+    else:
         return False, {}
-    return True, {}
 
 
 def _is_float(input):
@@ -187,17 +196,11 @@ def _parse_required(s):
         return s
 
 
-def IntervalMetadata_construct(_attr, _interval):
-    im = IntervalMetadata()
-    im.add(Feature(**_attr), _interval)
-    return im
-
-
 def _construct(record, constructor=None, **kwargs):
-    attr, meta = record
     if constructor is None:
-        constructor = IntervalMetadata_construct
-    return constructor(attr, meta)
+        constructor = IntervalMetadata
+    if constructor is IntervalMetadata:
+        return IntervalMetadata(features=record)
 
 
 @gff.reader(None)
@@ -207,14 +210,14 @@ def _gff_to_generator(fh, constructor=None, **kwargs):
 
 
 @gff.reader(IntervalMetadata)
-def _gff_to_metadata(fh, seq_num=1, **kwargs):
-    record = _get_nth_sequence(_parse_records(fh), seq_num)
-    return _construct(record, IntervalMetadata_construct, **kwargs)
+def _gff_to_metadata(fh, rec_num=1, **kwargs):
+    record = _get_nth_record(_parse_records(fh), rec_num)
+    return _construct(record, IntervalMetadata, **kwargs)
 
 
-# generator passed to gff.reader()
-# OUT: yield annotation `annot` list of dicts and `intervals` list of tuples
-def _parse_records(fh, constructor=None, **kwargs):
+def _parse_records(fh):
+    seqID = False
+    features = {}
     for line in _line_generator(fh, skip_blanks=True, strip=True):
         if not line.startswith('#'):
             tabs = line.split('\t')
@@ -228,11 +231,25 @@ def _parse_records(fh, constructor=None, **kwargs):
             # extract intervals
             _intervals = tabs[3:5]
 
-            annot = list(map(_parse_required, _headers))
             intervals = tuple(map(_parse_required, _intervals))
+
             attr = _parse_attr(_attributes)
-            annot.append(attr)
+            _annot = list(map(_parse_required, _headers))
+            _annot.append(attr)
+            annotation = Feature(dict(zip(_ANNOTATION_HEADERS, _annot)))
 
-            annot = dict(zip(_ANNOTATION_HEADERS, annot))
+            if _annot[0] == seqID or seqID is False:
+                seqID = _annot[0]
+                features[annotation] = intervals
+            else:
+                seqID = False
+                yield features
+                features = {}
+                features[annotation] = intervals
 
-            yield annot, intervals
+    yield features
+
+
+@gff.writer(IntervalMetadata)
+def _IntervalMetadata_to_gff(im):
+    return True

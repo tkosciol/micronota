@@ -19,7 +19,7 @@ class GffIOTests(TestCase):
     def setUp(self):
         self.multi_fp = get_data_path('full.gff')
         self.simple_fp = get_data_path('simple.gff')
-        self.attributes = {
+        self.attribute1 = {
                             'SEQID': 'gi|15282445|ref|NC_000918.1|',
                             'SOURCE': 'minced:0.2.0',
                             'TYPE': 'CRISPR',
@@ -28,16 +28,53 @@ class GffIOTests(TestCase):
                             'PHASE': '.',
                             'ATTR': ('ID', 'CRISPR1')
                             }
-        self.intervals = (156460, 156767)
-        self.single_exp_im = IntervalMetadata()
-        self.single_exp_im.add(Feature(**self.attributes), self.intervals)
+        self.attribute2 = {
+                            'SEQID': 'gi|15282445|ref|NC_000918.1|',
+                            'SOURCE': 'minced:0.2.0',
+                            'TYPE': 'CRISPR',
+                            'SCORE': 4,
+                            'STRAND': '.',
+                            'PHASE': '.',
+                            'ATTR': ('ID', 'CRISPR2')
+                            }
+        self.interval1 = (156460, 156767)
+        self.interval2 = (244561, 244791)
+        self.simple_exp_im = IntervalMetadata(features={
+                                              Feature(**self.attribute1):
+                                              self.interval1})
+        self.full_exp_im = IntervalMetadata(features={
+                                            Feature(**self.attribute1):
+                                            self.interval1,
+                                            Feature(**self.attribute2):
+                                            self.interval2})
+
+        self.sequence_fp = get_data_path('sequence.gff')
+        self.sequence_exp = \
+            (
+             'cttctgggcgtacccgattctcggagaacttgccgcaccattccgccttg'
+             'tgttcattgctgcctgcatgttcattgtctacctcggctacgtgtggcta'
+             'tctttcctcggtgccctcgtgcacggagtcgagaaaccaaagaacaaaaa'
+             'aagaaattaaaatatttattttgctgtggtttttgatgtgtgttttttat'
+             'aatgatttttgatgtgaccaattgtacttttcctttaaatgaaatgtaat'
+             'cttaaatgtatttccgacgaattcgaggcctgaaaagtgtgacgccattc', {
+                 'SEQID': 'ctg123',
+                 'SOURCE': '.',
+                 'TYPE': 'exon',
+                 'START': 130,
+                 'END': 150,
+                 'SCORE': '.',
+                 'STRAND': '+',
+                 'PHASE': '.',
+                 'ATTR': ('ID', 'exon00001')
+             })
 
 
 class SnifferTests(TestCase):
     def setUp(self):
         self.positive_fps = list(map(get_data_path, [
             'simple.gff',
-            'full.gff']))
+            'full.gff',
+            'sequence.gff']))
         self.negative_fps = list(map(get_data_path, [
             'blank.sam',
             'wrong.gff']))
@@ -51,12 +88,15 @@ class SnifferTests(TestCase):
 
 class ReaderTests(GffIOTests):
     def test_gff_to_metadata(self):
-        obs = _gff_to_metadata(self.multi_fp)
-        exp = self.single_exp_im
-        self.assertEqual(obs, exp)
+        obs_simple = _gff_to_metadata(self.simple_fp, rec_num=1)
+        exp_simple = self.simple_exp_im
+        obs_full = _gff_to_metadata(self.multi_fp, rec_num=2)
+        exp_full = self.full_exp_im
+        self.assertEqual(obs_simple, exp_simple)
+        self.assertEqual(obs_full, exp_full)
 
     def test_gff_to_generator(self):
-        exp = self.single_exp_im
+        exp = self.simple_exp_im
         for obs in _gff_to_generator(self.simple_fp):
             self.assertEqual(obs, exp)
 

@@ -53,8 +53,7 @@ class SnifferTests(TestCase):
     def setUp(self):
         self.positive_fps = list(map(get_data_path, [
             'simple.gff',
-            'full.gff',
-            'sequence.gff']))
+            'full.gff']))
         self.negative_fps = list(map(get_data_path, [
             'blank.sam',
             'wrong.gff']))

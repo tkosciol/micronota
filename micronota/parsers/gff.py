@@ -91,13 +91,7 @@ Format Support
 +------+------+---------------------------------------------------------------+
 |Reader|Writer|                          Object Class                         |
 +======+======+===============================================================+
-|Yes   |No    |:mod:`skbio.metadata.IntervalMetadata` objects                 |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.Sequence`                                 |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.DNA`                                      |
-+------+------+---------------------------------------------------------------+
-|Yes   |No    |:mod:`skbio.sequence.RNA`                                      |
+|Yes   |Yes   |:mod:`skbio.metadata.IntervalMetadata` objects                 |
 +------+------+---------------------------------------------------------------+
 |Yes   |No    |generator of :mod:`skbio.metadata.IntervalMetadata` objects    |
 +------+------+---------------------------------------------------------------+
@@ -107,9 +101,6 @@ Reference
 ---------
 .. [#] http://gmod.org/wiki/GFF3
 '''
-
-# TODO
-# add writer
 
 from skbio.io import create_format, FileFormatError
 from skbio.metadata import IntervalMetadata, Feature
@@ -128,6 +119,18 @@ _ANNOTATION_HEADERS = [
           'SEQID',
           'SOURCE',
           'TYPE',
+          'SCORE',
+          'STRAND',
+          'PHASE',
+          'ATTR'
+          ]
+
+_GFF_HEADERS = [
+          'SEQID',
+          'SOURCE',
+          'TYPE',
+          'START',
+          'END',
           'SCORE',
           'STRAND',
           'PHASE',
@@ -248,3 +251,47 @@ def _parse_records(fh):
                 features[annotation] = intervals
 
     yield features
+
+
+def _attr_to_list(attr_list):
+    _tags = []
+    if any(isinstance(el, tuple) for el in attr_list):
+        for _attr in attr_list:
+            _tags.append('='.join([_attr[0], _attr[1]]))
+        return ';'.join(_tags)
+    else:
+        return '='.join([attr_list[0], attr_list[1]])
+
+
+@gff.writer(IntervalMetadata)
+def _IntervalMetadata_to_gff(obj, fh):
+    # write file header
+    fh.write('%s\n' % '##gff-version 3')
+
+    for features, interval in obj.features.items():
+        tab = [None] * 9
+
+        if len(features) is not 7:
+            raise GFFFormatError(
+                "``IntervalMetadata`` can only be written in GFF format if all"
+                " annotation columns are found.")
+        if len(interval) is not 2:
+            raise GFFFormatError(
+                "``IntervalMetadata`` can only be written in GFF format if "
+                " `START` and `END` fields are provided.")
+        if not all(_annot in set(features) for _annot in _ANNOTATION_HEADERS):
+            raise GFFFormatError(
+                "GFF format requires header names to match pre-defined set: %s"
+                % ', '.join(_ANNOTATION_HEADERS))
+
+        for i, annot in enumerate(_GFF_HEADERS):
+            if annot is 'START':
+                tab[i] = interval[0]
+            elif annot is 'END':
+                tab[i] = interval[1]
+            elif annot is 'ATTR':
+                tab[i] = _attr_to_list(features[annot])
+            else:
+                tab[i] = features[annot]
+
+        fh.write('\t'.join(map(str, tab)) + '\n')

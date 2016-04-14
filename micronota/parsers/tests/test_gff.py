@@ -12,8 +12,10 @@ import io
 from skbio.util import get_data_path
 from skbio.metadata import IntervalMetadata, Feature
 
-from micronota.parsers.gff import (
-    _gff_sniffer, _gff_to_metadata, _gff_to_generator, _IntervalMetadata_to_gff)
+from micronota.parsers.gff3 import (_gff_sniffer,
+                                    _gff_to_metadata,
+                                    _gff_to_generator,
+                                    _IntervalMetadata_to_gff)
 
 
 class GffIOTests(TestCase):
@@ -28,7 +30,7 @@ class GffIOTests(TestCase):
                             'SCORE': 5,
                             'STRAND': '.',
                             'PHASE': '.',
-                            'ATTR': ('ID', 'CRISPR1')
+                            'ATTR': (('ID',), ('CRISPR1',))
                             }
         self.attribute2 = {
                             'SEQID': 'gi|15282445|ref|NC_000918.1|',
@@ -37,7 +39,7 @@ class GffIOTests(TestCase):
                             'SCORE': 4,
                             'STRAND': '.',
                             'PHASE': '.',
-                            'ATTR': ('ID', 'CRISPR2')
+                            'ATTR': (('ID',), ('CRISPR2',))
                             }
         self.interval1 = (156460, 156767)
         self.interval2 = (244561, 244791)

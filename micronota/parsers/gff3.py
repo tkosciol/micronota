@@ -167,7 +167,6 @@ def _parse_attr(s):
     _field = s.split(';')
     types = []
     values = []
-    _attr = ()
     for f in _field:
         try:
             _type, _val = f.split('=')
@@ -176,9 +175,8 @@ def _parse_attr(s):
         types.append(_type.strip())
         values.append(_val.strip())
 
-        # _attr = _attr + (_type.strip(), _val.strip())
-    _attr2 = (tuple(types), tuple(values))
-    return _attr2
+    _attr = (tuple(types), tuple(values))
+    return _attr
 
 
 def _parse_required(s):

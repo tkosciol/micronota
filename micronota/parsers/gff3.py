@@ -54,7 +54,7 @@ A parent ID can be used to group exons into transcripts, transcripts into genes
 and so forth. A feature may have multiple parents. Parent can *only* be used
 to indicate a partof relationship.
 
-**Target**
+**Target**  
 Indicates the target of a nucleotide-to-nucleotide or
 protein-to-nucleotide alignment. The format of the value is "target_id start
 end [strand]", where strand is optional and may be "+" or "-".
@@ -269,7 +269,7 @@ def _IntervalMetadata_to_gff(obj, fh):
             raise GFFFormatError(
                 "``IntervalMetadata`` can only be written in GFF format if "
                 " `START` and `END` fields are provided.")
-        if not all(_annot in set(features) for _annot in _ANNOTATION_HEADERS):
+        if not all(set(features) - set(_ANNOTATION_HEADERS)):
             raise GFFFormatError(
                 "GFF format requires header names to match pre-defined set: %s"
                 % ', '.join(_ANNOTATION_HEADERS))

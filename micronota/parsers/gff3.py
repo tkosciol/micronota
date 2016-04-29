@@ -54,7 +54,7 @@ A parent ID can be used to group exons into transcripts, transcripts into genes
 and so forth. A feature may have multiple parents. Parent can *only* be used
 to indicate a partof relationship.
 
-**Target**  
+**Target**
 Indicates the target of a nucleotide-to-nucleotide or
 protein-to-nucleotide alignment. The format of the value is "target_id start
 end [strand]", where strand is optional and may be "+" or "-".
